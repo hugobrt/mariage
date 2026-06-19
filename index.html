@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LJ V1</title>
+<title>Pour vous</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=Inter:wght@400;500&display=swap" rel="stylesheet">
@@ -220,11 +220,12 @@
     display:flex;
     flex-direction:column;
     align-items:center;justify-content:center;
-    gap:40px;padding:7vw;text-align:center;
+    gap:28px;padding:7vw;text-align:center;
     background:
       radial-gradient(60% 50% at 50% 42%, rgba(201,168,106,.10), transparent 70%),
       linear-gradient(180deg,#0c0f16,#06080c);
     opacity:0;pointer-events:none;
+    overflow-y:auto;
     transition:opacity 1.3s ease;
   }
   .finale.show{opacity:1;pointer-events:auto}
@@ -235,6 +236,34 @@
     line-height:1.12;
     letter-spacing:.01em;
     max-width:18ch;
+    transition:font-size .9s ease;
+  }
+  /* 3e temps : le message remonte (rétrécit) et les détails apparaissent */
+  .finale.expanded .finale-text{
+    font-size:clamp(1.5rem,5vw,2.7rem);
+    max-width:24ch;
+  }
+  .finale-details{
+    max-height:0;opacity:0;overflow:hidden;
+    transform:translateY(10px);
+    transition:max-height 1s ease, opacity .9s ease, transform .9s ease;
+    display:flex;flex-direction:column;gap:14px;
+    font-family:"Inter",sans-serif;
+    font-size:clamp(1rem,2.6vw,1.2rem);
+    line-height:1.6;
+    color:var(--paper);
+    max-width:32ch;
+  }
+  .finale.expanded .finale-details{
+    max-height:200vh;opacity:1;transform:none;
+  }
+  .finale-details .detail-label{
+    display:block;
+    font-size:.74rem;
+    letter-spacing:.22em;
+    text-transform:uppercase;
+    color:var(--glow);
+    margin-bottom:3px;
   }
   .finale-replay{
     position:absolute;
@@ -315,6 +344,15 @@
   <!-- Second temps : prend tout l'écran -->
   <div class="finale" id="finale">
     <p class="finale-text">Votre second message ici</p>
+
+    <!-- ▼ Récap des détails (à modifier librement) ▼ -->
+    <div class="finale-details" id="details">
+      <p><span class="detail-label">Cérémonie</span>Détail à modifier</p>
+      <p><span class="detail-label">Réception</span>Détail à modifier</p>
+      <p><span class="detail-label">Infos</span>Détail à modifier</p>
+    </div>
+    <!-- ▲ Récap des détails ▲ -->
+
     <button class="finale-replay" id="replay">Revoir la vidéo</button>
   </div>
 
@@ -336,13 +374,20 @@
      le second message recouvre toute la page.
   ============================================================ */
   const FINALE_DELAY = 4;
+
+  /* ============================================================
+     DÉLAI avant le 3e temps, en secondes.
+     Une fois le second message affiché, ce délai passé, il remonte
+     et le récap des détails apparaît en dessous.
+  ============================================================ */
+  const DETAILS_DELAY = 4;
   /* ▲▲▲  rien d'autre à modifier en dessous  ▲▲▲ */
 
   const veil   = document.getElementById('veil');
   const endcard= document.getElementById('endcard');
   const finale = document.getElementById('finale');
   const replay = document.getElementById('replay');
-  let finaleTimer = null;
+  let finaleTimer = null, detailsTimer = null;
 
   /* Le SDK crée le lecteur dans #frame ; titre/auteur masqués. */
   const player = new Vimeo.Player('frame', {
@@ -354,11 +399,15 @@
     responsive: false
   });
 
-  /* Fin de la vidéo : la date d'abord, puis l'écran plein écran. */
+  /* Fin de la vidéo : date → message plein écran → remontée + détails. */
   player.on('ended', () => {
     endcard.classList.add('show');
     clearTimeout(finaleTimer);
-    finaleTimer = setTimeout(() => finale.classList.add('show'), FINALE_DELAY * 1000);
+    clearTimeout(detailsTimer);
+    finaleTimer = setTimeout(() => {
+      finale.classList.add('show');
+      detailsTimer = setTimeout(() => finale.classList.add('expanded'), DETAILS_DELAY * 1000);
+    }, FINALE_DELAY * 1000);
   });
 
   veil.addEventListener('click', () => {
@@ -368,8 +417,11 @@
 
   replay.addEventListener('click', () => {
     clearTimeout(finaleTimer);
+    clearTimeout(detailsTimer);
     finale.classList.remove('show');
+    finale.classList.remove('expanded');
     endcard.classList.remove('show');
+    finale.scrollTop = 0;
     player.setCurrentTime(0).then(() => player.play()).catch(() => {});
   });
 </script>
