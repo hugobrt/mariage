@@ -272,6 +272,81 @@
   }
   .finale-replay:hover{opacity:1}
 
+  /* Bouton "Créer mon billet" — apparaît au 3e temps */
+  .ticket-btn{
+    opacity:0;pointer-events:none;
+    transform:translateY(8px);
+    transition:opacity .8s ease, transform .8s ease, background .3s ease, border-color .3s ease;
+    border:1px solid var(--glow);
+    background:rgba(201,168,106,.10);
+    color:var(--paper);
+    font-family:"Inter",sans-serif;
+    font-size:.92rem;
+    letter-spacing:.04em;
+    padding:13px 26px;
+    border-radius:999px;
+    cursor:pointer;
+  }
+  .finale.expanded .ticket-btn{opacity:1;pointer-events:auto;transform:none}
+  .ticket-btn:hover,.ticket-btn:focus-visible{
+    background:rgba(201,168,106,.2);
+    border-color:#e3c98c;outline:none;
+  }
+
+  /* Fenêtre de saisie du prénom */
+  .modal{
+    position:fixed;inset:0;z-index:80;
+    display:none;
+    align-items:center;justify-content:center;
+    padding:20px;
+    background:rgba(5,6,10,.78);
+    backdrop-filter:blur(4px);
+  }
+  .modal.show{display:flex}
+  .modal-card{
+    width:100%;max-width:480px;
+    background:linear-gradient(180deg,#12151d,#0c0f15);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:30px 26px;
+    text-align:center;
+    box-shadow:0 40px 90px -40px rgba(0,0,0,.9);
+  }
+  .modal-card h2{
+    font-family:"Fraunces",serif;font-weight:300;
+    font-size:1.6rem;margin-bottom:6px;
+  }
+  .modal-card p.sub{
+    color:var(--paper-dim);font-size:.9rem;margin-bottom:20px;
+  }
+  .modal-card input{
+    width:100%;
+    background:rgba(236,230,218,.06);
+    border:1px solid var(--line);
+    border-radius:10px;
+    color:var(--paper);
+    font-family:"Inter",sans-serif;font-size:1.05rem;
+    padding:13px 15px;text-align:center;
+    margin-bottom:16px;
+  }
+  .modal-card input:focus{outline:none;border-color:var(--glow)}
+  .modal-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .btn{
+    border-radius:999px;cursor:pointer;
+    font-family:"Inter",sans-serif;font-size:.9rem;letter-spacing:.03em;
+    padding:12px 22px;transition:background .3s ease,border-color .3s ease;
+  }
+  .btn-primary{border:1px solid var(--glow);background:var(--glow);color:#1a1407;font-weight:500}
+  .btn-primary:hover{background:#e3c98c}
+  .btn-ghost{border:1px solid var(--line);background:transparent;color:var(--paper-dim)}
+  .btn-ghost:hover{color:var(--paper);border-color:var(--paper-dim)}
+  .ticket-preview{margin:18px 0 4px}
+  .ticket-preview img{
+    width:100%;height:auto;border-radius:10px;display:block;
+    box-shadow:0 20px 50px -25px rgba(0,0,0,.9);
+  }
+  .hidden{display:none !important}
+
   .error{
     position:absolute;inset:0;
     display:none;
@@ -353,8 +428,35 @@
     </div>
     <!-- ▲ Récap des détails ▲ -->
 
+    <button class="ticket-btn" id="ticketBtn">✈&nbsp; Créer mon billet</button>
     <button class="finale-replay" id="replay">Revoir la vidéo</button>
   </div>
+
+  <!-- Fenêtre : prénom → billet PNG -->
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-label="Créer votre billet">
+    <div class="modal-card">
+      <div id="step-name">
+        <h2>Votre billet pour la Crète</h2>
+        <p class="sub">Entrez votre prénom (ou « Prénom &amp; Prénom »).</p>
+        <input id="nameInput" type="text" maxlength="40" placeholder="Votre prénom" autocomplete="off">
+        <div class="modal-actions">
+          <button class="btn btn-ghost" id="modalClose">Fermer</button>
+          <button class="btn btn-primary" id="generateBtn">Générer mon billet</button>
+        </div>
+      </div>
+
+      <div id="step-result" class="hidden">
+        <h2>Votre billet est prêt</h2>
+        <div class="ticket-preview"><img id="ticketImg" alt="Billet d'embarquement pour la Crète"></div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" id="backBtn">Modifier</button>
+          <a class="btn btn-primary" id="downloadLink" download="billet-crete.png">Télécharger le PNG</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="ticketCanvas" class="hidden"></canvas>
 
 <script src="https://player.vimeo.com/api/player.js"></script>
 <script>
@@ -381,6 +483,24 @@
      et le récap des détails apparaît en dessous.
   ============================================================ */
   const DETAILS_DELAY = 4;
+
+  /* ============================================================
+     LE BILLET D'EMBARQUEMENT — textes modifiables
+     (le prénom est ajouté automatiquement à la génération)
+  ============================================================ */
+  const TICKET = {
+    airline:    "AIR CRÈTE",
+    origin:     "PARIS",        originCode: "CDG",
+    destination:"LA CRÈTE",     destCode:   "HER",
+    flight:     "WD 2027",
+    date:       "29.05.2027",
+    boarding:   "12:30",
+    gate:       "B7",
+    seat:       "2A",
+    classe:     "MARIAGE",
+    couple:     "Prénom & Prénom",
+    note:       "À l'occasion de notre mariage"
+  };
   /* ▲▲▲  rien d'autre à modifier en dessous  ▲▲▲ */
 
   const veil   = document.getElementById('veil');
@@ -424,6 +544,183 @@
     finale.scrollTop = 0;
     player.setCurrentTime(0).then(() => player.play()).catch(() => {});
   });
+
+  /* ===================== BILLET PNG ===================== */
+  const ticketBtn   = document.getElementById('ticketBtn');
+  const modal       = document.getElementById('modal');
+  const nameInput   = document.getElementById('nameInput');
+  const generateBtn = document.getElementById('generateBtn');
+  const modalClose  = document.getElementById('modalClose');
+  const backBtn     = document.getElementById('backBtn');
+  const stepName    = document.getElementById('step-name');
+  const stepResult  = document.getElementById('step-result');
+  const ticketImg   = document.getElementById('ticketImg');
+  const downloadLink= document.getElementById('downloadLink');
+  const canvas      = document.getElementById('ticketCanvas');
+
+  function openModal(){
+    modal.classList.add('show');
+    stepResult.classList.add('hidden');
+    stepName.classList.remove('hidden');
+    setTimeout(() => nameInput.focus(), 50);
+  }
+  function closeModal(){ modal.classList.remove('show'); }
+
+  ticketBtn.addEventListener('click', openModal);
+  modalClose.addEventListener('click', closeModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+  backBtn.addEventListener('click', () => {
+    stepResult.classList.add('hidden');
+    stepName.classList.remove('hidden');
+    nameInput.focus();
+  });
+  nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') generateBtn.click(); });
+
+  generateBtn.addEventListener('click', () => {
+    const name = nameInput.value.trim();
+    if (!name){ nameInput.style.borderColor = '#c46a6a'; nameInput.focus(); return; }
+    nameInput.style.borderColor = '';
+    const url = drawTicket(name);
+    ticketImg.src = url;
+    downloadLink.href = url;
+    stepName.classList.add('hidden');
+    stepResult.classList.remove('hidden');
+  });
+
+  /* --- rectangle arrondi --- */
+  function rr(c,x,y,w,h,r){
+    c.beginPath();
+    c.moveTo(x+r,y);
+    c.arcTo(x+w,y,x+w,y+h,r);
+    c.arcTo(x+w,y+h,x,y+h,r);
+    c.arcTo(x,y+h,x,y,r);
+    c.arcTo(x,y,x+w,y,r);
+    c.closePath();
+  }
+
+  /* --- avion vectoriel (rendu garanti partout) --- */
+  const PLANE = new Path2D("M21 16v-2l-8-5V3.5C13 2.67 12.33 2 11.5 2S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z");
+  function plane(c,x,y,sz,col){
+    c.save(); c.translate(x,y); c.rotate(Math.PI/2); const k=sz/24; c.scale(k,k); c.translate(-12,-12);
+    c.fillStyle=col; c.fill(PLANE); c.restore();
+  }
+
+  /* --- illustration de la Crète --- */
+  function drawCrete(c,x,y,w,h){
+    c.save();
+    rr(c,x,y,w,h,18); c.clip();
+    let sky = c.createLinearGradient(0,y,0,y+h);
+    sky.addColorStop(0,'#ffe2ad'); sky.addColorStop(.45,'#ffbd86'); sky.addColorStop(1,'#f6a06f');
+    c.fillStyle = sky; c.fillRect(x,y,w,h);
+    c.fillStyle = 'rgba(255,247,225,.95)';
+    c.beginPath(); c.arc(x+w*0.5, y+h*0.45, w*0.16, 0, Math.PI*2); c.fill();
+    const seaTop = y+h*0.62;
+    let sea = c.createLinearGradient(0,seaTop,0,y+h);
+    sea.addColorStop(0,'#2f93ad'); sea.addColorStop(1,'#1b5f78');
+    c.fillStyle = sea; c.fillRect(x,seaTop,w,y+h-seaTop);
+    c.fillStyle='rgba(255,232,175,.5)'; c.fillRect(x+w*0.42, seaTop, w*0.16, y+h-seaTop);
+    c.fillStyle='#14495a';
+    c.beginPath(); c.moveTo(x,seaTop);
+    c.quadraticCurveTo(x+w*0.3, seaTop-h*0.16, x+w*0.58, seaTop);
+    c.lineTo(x+w*0.58, seaTop+2); c.lineTo(x, seaTop+2); c.closePath(); c.fill();
+    function house(hx,hy,sz){
+      c.fillStyle='#f6f1e7'; c.fillRect(hx,hy,sz,sz*0.95);
+      c.fillStyle='#2b6fa3'; c.beginPath(); c.arc(hx+sz/2,hy,sz/2,Math.PI,0); c.fill();
+    }
+    house(x+w*0.18, seaTop-13, 16);
+    house(x+w*0.33, seaTop-10, 13);
+    house(x+w*0.44, seaTop-16, 19);
+    c.restore();
+    c.strokeStyle='rgba(255,255,255,.55)'; c.lineWidth=1.5; rr(c,x,y,w,h,18); c.stroke();
+  }
+
+  /* --- dessin du billet complet --- */
+  function drawTicket(name){
+    const W=1000, H=440, s=2;
+    canvas.width = W*s; canvas.height = H*s;
+    const c = canvas.getContext('2d');
+    c.scale(s,s);
+
+    c.fillStyle='#f5f0e6'; rr(c,0,0,W,H,22); c.fill();
+
+    rr(c,0,0,W,H,22); c.save(); c.clip();
+    c.fillStyle='#123c4a'; c.fillRect(0,0,W,66); c.restore();
+
+    c.textBaseline='middle';
+    plane(c,42,33,22,'#c9a86a');
+    c.fillStyle='#c9a86a'; c.font='600 22px Georgia, serif';
+    c.fillText(TICKET.airline, 64, 34);
+    c.fillStyle='rgba(245,240,230,.85)'; c.font='11px Helvetica, Arial, sans-serif';
+    c.textAlign='right'; c.fillText("CARTE D'EMBARQUEMENT \u00b7 BOARDING PASS", W-28, 34);
+    c.textAlign='left';
+
+    drawCrete(c, 28, 92, 250, 316);
+
+    c.textBaseline='top';
+    const dx=312;
+    const label=(t,x,y)=>{ c.fillStyle='#8a7f6a'; c.font='600 10px Helvetica, Arial, sans-serif'; c.fillText(t.toUpperCase(),x,y); };
+    const value=(t,x,y,sz,col)=>{ c.fillStyle=col||'#1c2530'; c.font='300 '+(sz||22)+'px Georgia, serif'; c.fillText(t,x,y); };
+
+    label('Passager', dx, 92);
+    value(name, dx, 106, 30);
+
+    label('De', dx, 158);
+    value(TICKET.origin, dx, 172, 22);
+    c.fillStyle='#8a7f6a'; c.font='11px Helvetica, Arial, sans-serif'; c.fillText(TICKET.originCode, dx, 198);
+
+    c.strokeStyle='#c9a86a'; c.lineWidth=1.5;
+    c.beginPath(); c.moveTo(dx+150,184); c.lineTo(dx+258,184); c.stroke();
+    c.fillStyle='#c9a86a'; c.beginPath(); c.moveTo(dx+258,184); c.lineTo(dx+250,180); c.lineTo(dx+250,188); c.closePath(); c.fill();
+
+    label('\u00c0', dx+288, 158);
+    value(TICKET.destination, dx+288, 172, 22, '#123c4a');
+    c.fillStyle='#8a7f6a'; c.font='11px Helvetica, Arial, sans-serif'; c.fillText(TICKET.destCode, dx+288, 198);
+
+    const rows=[
+      [['Vol',TICKET.flight],['Date',TICKET.date],['Embarq.',TICKET.boarding]],
+      [['Porte',TICKET.gate],['Si\u00e8ge',TICKET.seat],['Classe',TICKET.classe]]
+    ];
+    rows.forEach((row,ri)=>{
+      const ly=230+ri*46, vy=ly+16;
+      row.forEach((col,ci)=>{
+        const cxx=dx+ci*118;
+        label(col[0], cxx, ly);
+        c.fillStyle='#1c2530'; c.font='600 15px Helvetica, Arial, sans-serif'; c.fillText(col[1], cxx, vy);
+      });
+    });
+
+    c.strokeStyle='rgba(0,0,0,.1)'; c.lineWidth=1;
+    c.beginPath(); c.moveTo(dx,326); c.lineTo(W-300,326); c.stroke();
+
+    c.fillStyle='#123c4a'; c.font='italic 300 18px Georgia, serif'; c.fillText(TICKET.note, dx, 340);
+    c.fillStyle='#7a6f5a'; c.font='13px Helvetica, Arial, sans-serif'; c.fillText(TICKET.couple, dx, 366);
+
+    // perforation + encoches transparentes
+    const px=W-272;
+    c.strokeStyle='rgba(0,0,0,.25)'; c.setLineDash([4,6]); c.lineWidth=1.5;
+    c.beginPath(); c.moveTo(px,14); c.lineTo(px,H-14); c.stroke(); c.setLineDash([]);
+    c.save(); c.globalCompositeOperation='destination-out'; c.fillStyle='#000';
+    c.beginPath(); c.arc(px,0,9,0,Math.PI*2); c.fill();
+    c.beginPath(); c.arc(px,H,9,0,Math.PI*2); c.fill();
+    c.restore();
+
+    // talon droit
+    const tx=px+28;
+    c.fillStyle='#c9a86a'; c.font='600 11px Helvetica, Arial, sans-serif'; c.fillText(TICKET.airline, tx, 88);
+    label('Passager', tx, 116); value(name, tx, 130, 18);
+    label('Destination', tx, 168); value(TICKET.destCode+' \u00b7 CR\u00c8TE', tx, 182, 15, '#123c4a');
+    label('Date', tx, 220); c.fillStyle='#1c2530'; c.font='600 15px Helvetica, Arial, sans-serif'; c.fillText(TICKET.date, tx, 236);
+    label('Si\u00e8ge', tx, 268); c.fillStyle='#1c2530'; c.font='600 15px Helvetica, Arial, sans-serif'; c.fillText(TICKET.seat, tx, 284);
+
+    // code-barres
+    const bx=tx, by=320, bw=(W-28)-tx;
+    c.fillStyle='#1c2530'; let xx=bx;
+    while(xx < bx+bw){ const bw2=1+Math.random()*3; c.fillRect(xx,by,bw2,52); xx += bw2 + 1 + Math.random()*3; }
+    c.fillStyle='#8a7f6a'; c.font='9px Helvetica, Arial, sans-serif'; c.fillText('WD2027 \u00b7 '+TICKET.date, tx, 380);
+
+    return canvas.toDataURL('image/png');
+  }
 </script>
 </body>
 </html>
