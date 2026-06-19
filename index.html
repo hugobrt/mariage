@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pour vous</title>
+<title>LJ</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=Inter:wght@400;500&display=swap" rel="stylesheet">
@@ -175,11 +175,18 @@
   }
   .endcard.show{opacity:1;pointer-events:auto}
 
+  .endcard .kicker{
+    font-size:.78rem;
+    letter-spacing:.28em;
+    text-transform:uppercase;
+    color:var(--glow);
+  }
   .endcard .big{
     font-family:"Fraunces",serif;
     font-weight:300;
-    font-size:clamp(1.8rem,5.5vw,3rem);
+    font-size:clamp(2rem,6.5vw,3.4rem);
     line-height:1.1;
+    letter-spacing:.01em;
   }
   .endcard .small{
     font-size:.82rem;
@@ -187,7 +194,7 @@
     text-transform:uppercase;
     color:var(--paper-dim);
   }
-  .replay{
+  .replay,.finale-replay{
     margin-top:4px;
     border:1px solid rgba(201,168,106,.5);
     background:rgba(201,168,106,.06);
@@ -200,11 +207,41 @@
     cursor:pointer;
     transition:background .3s ease, border-color .3s ease;
   }
-  .replay:hover,.replay:focus-visible{
+  .replay:hover,.replay:focus-visible,
+  .finale-replay:hover,.finale-replay:focus-visible{
     background:rgba(201,168,106,.16);
     border-color:var(--glow);
     outline:none;
   }
+
+  /* Second temps — recouvre toute la page */
+  .finale{
+    position:fixed;inset:0;z-index:50;
+    display:flex;
+    flex-direction:column;
+    align-items:center;justify-content:center;
+    gap:40px;padding:7vw;text-align:center;
+    background:
+      radial-gradient(60% 50% at 50% 42%, rgba(201,168,106,.10), transparent 70%),
+      linear-gradient(180deg,#0c0f16,#06080c);
+    opacity:0;pointer-events:none;
+    transition:opacity 1.3s ease;
+  }
+  .finale.show{opacity:1;pointer-events:auto}
+  .finale-text{
+    font-family:"Fraunces",serif;
+    font-weight:300;
+    font-size:clamp(2.4rem,8vw,5.2rem);
+    line-height:1.12;
+    letter-spacing:.01em;
+    max-width:18ch;
+  }
+  .finale-replay{
+    position:absolute;
+    bottom:max(28px,5vh);
+    opacity:.6;
+  }
+  .finale-replay:hover{opacity:1}
 
   .error{
     position:absolute;inset:0;
@@ -246,13 +283,18 @@
       </button>
 
       <div class="endcard" id="endcard">
-        <span class="big">Ceci est un test</span>
-        <span class="small">L'écran de fin fonctionne</span>
-        <button class="replay" id="replay">Revoir la vidéo</button>
+        <span class="kicker">Notez la date</span>
+        <span class="big">RDV le 29/05/2027</span>
       </div>
     </div>
 
     <p class="footnote">Une chose à vous montrer.</p>
+  </div>
+
+  <!-- Second temps : prend tout l'écran -->
+  <div class="finale" id="finale">
+    <p class="finale-text">Votre second message ici</p>
+    <button class="finale-replay" id="replay">Revoir la vidéo</button>
   </div>
 
 <script src="https://player.vimeo.com/api/player.js"></script>
@@ -266,11 +308,20 @@
       qu'elle reste intégrable / non listée.)
   ============================================================ */
   const VIMEO_VIDEO_ID = "1202917735";
+
+  /* ============================================================
+     DÉLAI avant le second écran (plein écran), en secondes.
+     "RDV le 29/05/2027" s'affiche d'abord, puis ce délai passé,
+     le second message recouvre toute la page.
+  ============================================================ */
+  const FINALE_DELAY = 4;
   /* ▲▲▲  rien d'autre à modifier en dessous  ▲▲▲ */
 
   const veil   = document.getElementById('veil');
   const endcard= document.getElementById('endcard');
+  const finale = document.getElementById('finale');
   const replay = document.getElementById('replay');
+  let finaleTimer = null;
 
   /* Le SDK crée le lecteur dans #frame ; titre/auteur masqués. */
   const player = new Vimeo.Player('frame', {
@@ -282,8 +333,12 @@
     responsive: false
   });
 
-  /* L'écran de fin se déclenche au vrai signal de fin de Vimeo. */
-  player.on('ended', () => endcard.classList.add('show'));
+  /* Fin de la vidéo : la date d'abord, puis l'écran plein écran. */
+  player.on('ended', () => {
+    endcard.classList.add('show');
+    clearTimeout(finaleTimer);
+    finaleTimer = setTimeout(() => finale.classList.add('show'), FINALE_DELAY * 1000);
+  });
 
   veil.addEventListener('click', () => {
     veil.classList.add('gone');
@@ -291,6 +346,8 @@
   });
 
   replay.addEventListener('click', () => {
+    clearTimeout(finaleTimer);
+    finale.classList.remove('show');
     endcard.classList.remove('show');
     player.setCurrentTime(0).then(() => player.play()).catch(() => {});
   });
